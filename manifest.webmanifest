@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Voto Guia 2026",
+  "short_name": "Voto Guia",
+  "description": "Guia apartidário de candidatos das Eleições 2026 com dados públicos do TSE, favoritos e santinho digital.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#fafafa",
+  "theme_color": "#808080",
+  "categories": ["government", "utilities", "reference"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Candidatos", "short_name": "Candidatos", "url": "./", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Meu santinho", "short_name": "Santinho", "url": "./santinho", "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

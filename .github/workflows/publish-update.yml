@@ -1,0 +1,39 @@
+name: Publicar atualização do Voto Guia
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Baixar build validado
+        run: |
+          curl -fL 'https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-8248-820e-bc61-49b998690002/raw?se=2026-08-17T10%3A06%3A03Z&sp=r&sv=2026-02-06&sr=b&scid=b1780c33-d5fb-548f-8d2a-3c583a3c02bf&skoid=68f37fa7-4e08-478b-93f3-c72d563a0ab3&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T20%3A47%3A34Z&ske=2026-08-17T20%3A47%3A34Z&sks=b&skv=2026-02-06&sig=gxvshVgwA2fx%2BXMjVH78a58%2Bn1SmJ6GG%2BkmUwcWFABo%3D' -o /tmp/voto-guia-dist.zip
+          rm -rf /tmp/site
+          mkdir -p /tmp/site
+          unzip -q /tmp/voto-guia-dist.zip -d /tmp/site
+          cp /tmp/site/index.html /tmp/site/404.html
+          touch /tmp/site/.nojekyll
+
+      - name: Publicar somente o site compilado
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout --orphan gh-pages-new
+          git rm -rf .
+          cp -a /tmp/site/. .
+          git add -A
+          git commit -m 'Atualizar Voto Guia compilado'
+          git branch -M gh-pages
+          git push --force origin gh-pages

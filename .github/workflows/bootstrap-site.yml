@@ -1,0 +1,88 @@
+name: Publicar Voto Guia compilado
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Baixar build validado
+        run: |
+          curl -fL 'https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-e044-820e-b10f-98cead9f6716/raw?se=2026-08-17T09%3A39%3A05Z&sp=r&sv=2026-02-06&sr=b&scid=f183a26e-8104-5060-a27b-840a9aef28d4&skoid=68f37fa7-4e08-478b-93f3-c72d563a0ab3&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T11%3A31%3A11Z&ske=2026-08-17T11%3A31%3A11Z&sks=b&skv=2026-02-06&sig=Sq3MJBiq6uyOWyt4rFyB5x%2Bs4gFjNTTnQIPJIs01Dp4%3D' -o /tmp/voto-guia-dist.zip
+          mkdir -p /tmp/site
+          unzip -q /tmp/voto-guia-dist.zip -d /tmp/site
+
+      - name: Ajustar build para GitHub Pages
+        shell: python
+        run: |
+          from pathlib import Path
+          root = Path('/tmp/site')
+          base = '/voto-guia-web/'
+
+          index = root / 'index.html'
+          s = index.read_text()
+          s = s.replace('href="/manifest.webmanifest"', 'href="/voto-guia-web/manifest.webmanifest"')
+          s = s.replace('href="/icons/apple-touch-icon.png"', 'href="/voto-guia-web/icon.svg"')
+          s = s.replace('href="/icons/favicon-32.png"', 'href="/voto-guia-web/icon.svg"')
+          s = s.replace('type="image/png" sizes="32x32"', 'type="image/svg+xml"')
+          s = s.replace('src="/assets/', 'src="/voto-guia-web/assets/')
+          s = s.replace('href="/assets/', 'href="/voto-guia-web/assets/')
+          index.write_text(s)
+
+          js = next((root / 'assets').glob('index-*.js'))
+          s = js.read_text()
+          s = s.replace('d.jsxs(Mw,{children:', 'd.jsxs(Mw,{basename:"/voto-guia-web",children:', 1)
+          s = s.replace('navigator.serviceWorker.register("/sw.js")', 'navigator.serviceWorker.register("/voto-guia-web/sw.js")')
+          js.write_text(s)
+
+          (root / 'manifest.webmanifest').write_text('''{
+            "id": "/voto-guia-web/",
+            "name": "Voto Guia 2026",
+            "short_name": "Voto Guia",
+            "description": "Guia apartidário de candidatos das Eleições 2026 com dados públicos do TSE, favoritos e santinho digital.",
+            "lang": "pt-BR",
+            "start_url": "/voto-guia-web/?source=pwa",
+            "scope": "/voto-guia-web/",
+            "display": "standalone",
+            "orientation": "portrait-primary",
+            "background_color": "#fafafa",
+            "theme_color": "#808080",
+            "icons": [{"src":"/voto-guia-web/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}],
+            "shortcuts": [
+              {"name":"Candidatos","url":"/voto-guia-web/"},
+              {"name":"Meu santinho","url":"/voto-guia-web/santinho"}
+            ]
+          }''')
+
+          (root / 'sw.js').write_text('''const CACHE_VERSION='voto-guia-web-shell-v1';
+          const BASE='/voto-guia-web/';
+          const APP_SHELL=[BASE,BASE+'manifest.webmanifest',BASE+'icon.svg'];
+          self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_VERSION).then(c=>c.addAll(APP_SHELL)));self.skipWaiting();});
+          self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE_VERSION).map(x=>caches.delete(x)))));self.clients.claim();});
+          self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==self.location.origin||!u.pathname.startsWith(BASE))return;if(r.mode==='navigate'){e.respondWith(fetch(r).then(x=>{const y=x.clone();caches.open(CACHE_VERSION).then(c=>c.put(BASE,y));return x;}).catch(()=>caches.match(BASE)));return;}if(['script','style','image','font'].includes(r.destination)){e.respondWith(caches.match(r).then(x=>{const n=fetch(r).then(y=>{if(y.ok){const z=y.clone();caches.open(CACHE_VERSION).then(c=>c.put(r,z));}return y;}).catch(()=>x);return x||n;}));}});''')
+
+          (root / 'icon.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="108" fill="#808080"/><rect x="112" y="94" width="288" height="324" rx="28" fill="#fff"/><path d="M170 190h172M170 254h172M170 318h96" stroke="#808080" stroke-width="24" stroke-linecap="round"/><path d="M286 326l30 30 62-78" fill="none" stroke="#4b5563" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/></svg>''')
+          (root / '.nojekyll').write_text('')
+          (root / '404.html').write_text(index.read_text())
+
+      - name: Publicar somente o site compilado
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout --orphan gh-pages
+          git rm -rf .
+          cp -a /tmp/site/. .
+          git add -A
+          git commit -m 'Publicar Voto Guia compilado'
+          git push --force origin gh-pages

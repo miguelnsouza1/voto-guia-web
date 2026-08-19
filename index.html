@@ -16,6 +16,7 @@
     <script>
       (() => {
         let selectedMunicipalYear = null;
+        let internalYearClick = false;
         const originalFetch = window.fetch.bind(window);
 
         window.fetch = (input, init = {}) => {
@@ -51,37 +52,65 @@
           return originalFetch(input, init);
         };
 
+        function setVisualYear(box, year) {
+          box.querySelectorAll('button').forEach((b) => {
+            b.classList.remove('border-neutral-800','bg-neutral-800','text-white');
+            b.classList.add('border-neutral-200','bg-white','text-neutral-700');
+          });
+          const active = [...box.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(String(year)));
+          if (active) {
+            active.classList.remove('border-neutral-200','bg-white','text-neutral-700');
+            active.classList.add('border-neutral-800','bg-neutral-800','text-white');
+          }
+          document.querySelectorAll('h1').forEach((h) => {
+            if (/^Candidatos\s+20\d{2}$/.test(h.textContent.trim())) h.textContent = `Candidatos ${year}`;
+          });
+        }
+
         function installYearButtons() {
           const label = [...document.querySelectorAll('div')].find(el => el.textContent?.trim() === 'Ano da eleição');
           if (!label) return;
           const box = label.parentElement?.querySelector('.flex.flex-wrap.gap-2');
-          if (!box || box.querySelector('[data-vg-year="2024"]')) return;
+          if (!box) return;
 
+          [...box.querySelectorAll('button')].forEach((b) => {
+            if (b.dataset.vgYearBound) return;
+            const txt = b.textContent.trim();
+            const year = Number((txt.match(/20\d{2}/) || [])[0]);
+            if (!year) return;
+            b.dataset.vgYearBound = '1';
+            b.addEventListener('click', () => {
+              if (internalYearClick) return;
+              if (year !== 2020 && year !== 2024) {
+                selectedMunicipalYear = null;
+                setTimeout(() => setVisualYear(box, year), 0);
+              }
+            }, true);
+          });
+
+          if (box.querySelector('[data-vg-year="2024"]')) return;
           const template = box.querySelector('button');
           if (!template) return;
 
           const make = (year, beforeYear) => {
             const b = template.cloneNode(true);
             b.dataset.vgYear = String(year);
+            b.dataset.vgYearBound = '1';
             b.disabled = false;
             b.textContent = String(year);
             b.title = `Ver candidatos de ${year}`;
             b.className = template.className.replace('cursor-not-allowed','').replace('line-through','');
-            b.addEventListener('click', () => {
+            b.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
               selectedMunicipalYear = year;
-              box.querySelectorAll('button').forEach(x => {
-                x.classList.remove('border-neutral-800','bg-neutral-800','text-white');
-                x.classList.add('border-neutral-200','bg-white','text-neutral-700');
-              });
-              b.classList.remove('border-neutral-200','bg-white','text-neutral-700');
-              b.classList.add('border-neutral-800','bg-neutral-800','text-white');
               const year2026 = [...box.querySelectorAll('button')].find(x => x.textContent.trim().startsWith('2026'));
-              if (year2026) year2026.click();
-              setTimeout(() => {
-                document.querySelectorAll('h1').forEach(h => {
-                  if (/^Candidatos\s+2026$/.test(h.textContent.trim())) h.textContent = `Candidatos ${year}`;
-                });
-              }, 50);
+              if (year2026) {
+                internalYearClick = true;
+                year2026.click();
+                internalYearClick = false;
+              }
+              setTimeout(() => setVisualYear(box, year), 25);
             });
             const before = [...box.querySelectorAll('button')].find(x => x.textContent.trim().startsWith(String(beforeYear)));
             box.insertBefore(b, before || null);

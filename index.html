@@ -15,36 +15,31 @@
     <title>Voto Guia</title>
     <script>
       (() => {
-        // O bundle público atual ainda traz a lista antiga de anos.
-        // Mantemos este hotfix somente até a publicação do próximo build completo.
-        const originalMap = Array.prototype.map;
-        Array.prototype.map = function(callback, thisArg) {
-          if (this.length === 3 && this[0] === 2026 && this[1] === 2022 && this[2] === 2018) {
-            return originalMap.call([2026, 2024, 2022, 2020, 2018], callback, thisArg);
-          }
-          return originalMap.call(this, callback, thisArg);
-        };
-
+        let selectedMunicipalYear = null;
         const originalFetch = window.fetch.bind(window);
+
         window.fetch = (input, init = {}) => {
           try {
             let url = typeof input === 'string' ? input : input?.url || '';
+
+            if (url.includes('/rest/v1/rpc/candidate_filter_options') && selectedMunicipalYear) {
+              const body = init.body ? JSON.parse(init.body) : {};
+              body.p_year = selectedMunicipalYear;
+              init = { ...init, body: JSON.stringify(body) };
+            }
+
             if (url.includes('/rest/v1/candidate_catalog_public')) {
               const parsed = new URL(url, window.location.origin);
-              const yearFilter = parsed.searchParams.get('election_year') || '';
-              const municipal = yearFilter === 'eq.2020' || yearFilter === 'eq.2024';
-
-              // Bundle antigo usava cargos de eleição geral ao abrir 2020/2024.
-              if (municipal) {
+              if (selectedMunicipalYear) {
+                parsed.searchParams.set('election_year', `eq.${selectedMunicipalYear}`);
                 const office = parsed.searchParams.get('office_name') || '';
-                if (office.startsWith('in.(')) {
+                if (!office || office.startsWith('in.(') || !['PREFEITO','VEREADOR'].includes(office.replace('eq.',''))) {
                   parsed.searchParams.set('office_name', 'in.(PREFEITO,VEREADOR)');
                 }
                 url = parsed.toString();
                 input = typeof input === 'string' ? url : new Request(url, input);
               }
 
-              // Evita COUNT(*) exato na view grande de candidatos.
               const headers = new Headers(init.headers || (typeof input !== 'string' ? input?.headers : undefined));
               const prefer = headers.get('Prefer');
               if (prefer && /count=exact/i.test(prefer)) {
@@ -56,14 +51,57 @@
           return originalFetch(input, init);
         };
 
-        // Apenas melhora a apresentação dos cargos municipais no select antigo.
+        function installYearButtons() {
+          const label = [...document.querySelectorAll('div')].find(el => el.textContent?.trim() === 'Ano da eleição');
+          if (!label) return;
+          const box = label.parentElement?.querySelector('.flex.flex-wrap.gap-2');
+          if (!box || box.querySelector('[data-vg-year="2024"]')) return;
+
+          const template = box.querySelector('button');
+          if (!template) return;
+
+          const make = (year, beforeYear) => {
+            const b = template.cloneNode(true);
+            b.dataset.vgYear = String(year);
+            b.disabled = false;
+            b.textContent = String(year);
+            b.title = `Ver candidatos de ${year}`;
+            b.className = template.className.replace('cursor-not-allowed','').replace('line-through','');
+            b.addEventListener('click', () => {
+              selectedMunicipalYear = year;
+              box.querySelectorAll('button').forEach(x => {
+                x.classList.remove('border-neutral-800','bg-neutral-800','text-white');
+                x.classList.add('border-neutral-200','bg-white','text-neutral-700');
+              });
+              b.classList.remove('border-neutral-200','bg-white','text-neutral-700');
+              b.classList.add('border-neutral-800','bg-neutral-800','text-white');
+              const year2026 = [...box.querySelectorAll('button')].find(x => x.textContent.trim().startsWith('2026'));
+              if (year2026) year2026.click();
+              setTimeout(() => {
+                document.querySelectorAll('h1').forEach(h => {
+                  if (/^Candidatos\s+2026$/.test(h.textContent.trim())) h.textContent = `Candidatos ${year}`;
+                });
+              }, 50);
+            });
+            const before = [...box.querySelectorAll('button')].find(x => x.textContent.trim().startsWith(String(beforeYear)));
+            box.insertBefore(b, before || null);
+          };
+
+          make(2024, 2022);
+          make(2020, 2018);
+        }
+
         const observer = new MutationObserver(() => {
+          installYearButtons();
           document.querySelectorAll('option').forEach((option) => {
             if (option.textContent === 'PREFEITO') option.textContent = 'Prefeito';
             if (option.textContent === 'VEREADOR') option.textContent = 'Vereador';
           });
         });
-        window.addEventListener('DOMContentLoaded', () => observer.observe(document.body, { childList: true, subtree: true }));
+        window.addEventListener('DOMContentLoaded', () => {
+          observer.observe(document.body, { childList: true, subtree: true });
+          installYearButtons();
+        });
       })();
     </script>
     <script type="module" crossorigin src="/voto-guia-web/assets/index-CGVnDrv4.js"></script>

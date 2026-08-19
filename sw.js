@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'voto-guia-shell-v5';
+const CACHE_VERSION = 'voto-guia-shell-v6';
 const BASE_URL = new URL('./', self.registration.scope).href;
 const APP_SHELL = [
   BASE_URL,

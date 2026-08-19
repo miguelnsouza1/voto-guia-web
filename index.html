@@ -13,6 +13,27 @@
     <link rel="apple-touch-icon" href="/voto-guia-web/icons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/voto-guia-web/icons/favicon-32.png" />
     <title>Voto Guia 2026</title>
+    <script>
+      // Hotfix público: evita COUNT(*) exato na view grande de candidatos,
+      // que pode ultrapassar o statement_timeout do Supabase.
+      (() => {
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = (input, init = {}) => {
+          try {
+            const url = typeof input === 'string' ? input : input?.url || '';
+            if (url.includes('/rest/v1/candidate_catalog_public')) {
+              const headers = new Headers(init.headers || (typeof input !== 'string' ? input?.headers : undefined));
+              const prefer = headers.get('Prefer');
+              if (prefer && /count=exact/i.test(prefer)) {
+                headers.set('Prefer', prefer.replace(/count=exact/ig, 'count=planned'));
+                init = { ...init, headers };
+              }
+            }
+          } catch (_) {}
+          return originalFetch(input, init);
+        };
+      })();
+    </script>
     <script type="module" crossorigin src="/voto-guia-web/assets/index-CGVnDrv4.js"></script>
     <link rel="stylesheet" crossorigin href="/voto-guia-web/assets/index-BzVq6yl3.css">
   </head>

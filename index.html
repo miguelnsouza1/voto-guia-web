@@ -27,13 +27,13 @@
      p.searchParams.set('election_year',`eq.${selectedMunicipalYear}`);
      const office=p.searchParams.get('office_name')||'';
      if(!office||office.startsWith('in.(')||!['PREFEITO','VEREADOR'].includes(office.replace('eq.',''))) p.searchParams.set('office_name','in.(PREFEITO,VEREADOR)');
-     // O bundle antigo embute o ano/cargos dentro do filtro "and" da busca por nome.
-     // Remove somente essas restrições antigas, preservando o OR de nome/número.
      const and=p.searchParams.get('and');
      if(and){
       let fixed=and.replace(/,?or\(uf\.eq\.[^,()]+,office_name\.eq\.PRESIDENTE\)/g,'');
       fixed=fixed.replace(/office_name\.eq\.(PRESIDENTE|GOVERNADOR|SENADOR|DEPUTADO FEDERAL|DEPUTADO ESTADUAL|DEPUTADO DISTRITAL),?/g,'');
-      p.searchParams.set('and',fixed);
+      fixed=fixed.replace(/\(\s*,/g,'(').replace(/,\s*\)/g,')').replace(/,{2,}/g,',');
+      if(!fixed || /^[\s(),]*$/.test(fixed) || /\(\s*\)/.test(fixed)) p.searchParams.delete('and');
+      else p.searchParams.set('and',fixed);
      }
      url=p.toString(); input=typeof input==='string'?url:new Request(url,input);
     }

@@ -15,6 +15,13 @@
 (() => {
  let selectedMunicipalYear=null, internalYearClick=false;
  const originalFetch=window.fetch.bind(window);
+ function sanitizeLogic(p){
+  const a=p.searchParams.get('and');
+  if(a!=null){
+   const t=a.trim();
+   if(!t || t==='()' || t==='(())' || /^\(\s*\)$/.test(t) || /^\(\(\s*\)\)$/.test(t)) p.searchParams.delete('and');
+  }
+ }
  window.fetch=(input,init={})=>{
   try{
    let url=typeof input==='string'?input:input?.url||'';
@@ -32,13 +39,14 @@
       let fixed=and.replace(/,?or\(uf\.eq\.[^,()]+,office_name\.eq\.PRESIDENTE\)/g,'');
       fixed=fixed.replace(/office_name\.eq\.(PRESIDENTE|GOVERNADOR|SENADOR|DEPUTADO FEDERAL|DEPUTADO ESTADUAL|DEPUTADO DISTRITAL),?/g,'');
       fixed=fixed.replace(/\(\s*,/g,'(').replace(/,\s*\)/g,')').replace(/,{2,}/g,',');
-      if(!fixed || /^[\s(),]*$/.test(fixed) || /\(\s*\)/.test(fixed)) p.searchParams.delete('and');
-      else p.searchParams.set('and',fixed);
+      if(!fixed || /^[\s(),]*$/.test(fixed) || fixed==='()' || fixed==='(())') p.searchParams.delete('and'); else p.searchParams.set('and',fixed);
      }
-     url=p.toString(); input=typeof input==='string'?url:new Request(url,input);
     }
+    sanitizeLogic(p);
+    url=p.toString(); input=typeof input==='string'?url:new Request(url,input);
     const headers=new Headers(init.headers||(typeof input!=='string'?input?.headers:undefined));
-    const prefer=headers.get('Prefer'); if(prefer&&/count=exact/i.test(prefer)){headers.set('Prefer',prefer.replace(/count=exact/ig,'count=planned'));init={...init,headers};}
+    const prefer=headers.get('Prefer');
+    if(prefer&&/count=exact/i.test(prefer)){headers.set('Prefer',prefer.replace(/count=exact/ig,'count=planned'));init={...init,headers};}
    }
   }catch(_){}
   return originalFetch(input,init);

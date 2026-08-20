@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'voto-guia-shell-v8';
+const CACHE_VERSION = 'voto-guia-shell-v9';
 const BASE_URL = new URL('./', self.registration.scope).href;
 const APP_SHELL = [BASE_URL,new URL('manifest.webmanifest',BASE_URL).href,new URL('icons/icon-192.png',BASE_URL).href,new URL('icons/icon-512.png',BASE_URL).href,new URL('icons/icon-maskable-512.png',BASE_URL).href];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_VERSION).then(c=>c.addAll(APP_SHELL)));self.skipWaiting()});
